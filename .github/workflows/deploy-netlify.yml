@@ -13,6 +13,10 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+env:
+  NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+  NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -38,24 +42,16 @@ jobs:
 
       - name: Deploy preview
         if: github.event_name == 'pull_request_target'
-        run: netlify deploy --dir=dist --site 5thstreetcapitalgamma
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: netlify deploy --dir=dist
 
       - name: Deploy to gamma (branch push)
         if: github.event_name == 'push' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master'
-        run: netlify deploy --dir=dist --prod --site 5thstreetcapitalgamma --message "branch ${{ github.ref_name }} @ ${{ github.sha }}"
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: netlify deploy --dir=dist --prod --message "branch ${{ github.ref_name }} @ ${{ github.sha }}"
 
       - name: Deploy to production
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-        run: netlify deploy --dir=dist --prod --site 5thstreetcapitalgamma
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: netlify deploy --dir=dist --prod
 
       - name: Manual deploy
         if: github.event_name == 'workflow_dispatch'
-        run: netlify deploy --dir=dist --prod --site 5thstreetcapitalgamma --message "manual @ ${{ github.sha }}"
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: netlify deploy --dir=dist --prod --message "manual @ ${{ github.sha }}"
