@@ -1,0 +1,18 @@
+[build]
+  publish = "dist"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[dev]
+  command = "npm run dev:vite"
+  port = 3000
+  targetPort = 5173
+  framework = "vite"
+  autoLaunch = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
