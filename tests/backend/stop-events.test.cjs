@@ -1,6 +1,7 @@
 const {
   DESIGNATED_STOPS,
   EVENT_TAIL,
+  HISTORY_FETCH_LIMIT,
   buildStopRiskSnapshot,
   encodeSse,
   engineOrderEvents,
@@ -123,28 +124,63 @@ describe('buildStopRiskSnapshot', () => {
     ...extra,
   });
 
-  it('maps engine order history into tagged events for every symbol', () => {
+  it('maps a designated limit order onto its limit_price path', () => {
     const [evt] = engineOrderEvents([
-      order(1, { state: 'queued', price: null, limit_price: null, stop_price: 174.92, type: 'market' }),
+      order(1, { state: 'queued', price: null, limit_price: 178.5, stop_price: null, type: 'limit' }),
     ]);
     expect(evt).toMatchObject({
       type: 'engine',
       id: 'o-1',
       code: 'order_queued',
       symbol: 'NBIS',
-      order_type: 'stop',
-      price: 174.92,
+      order_type: 'limit',
+      price: 178.5,
+      limit_price: 178.5,
       ts: order(1).updated_at,
     });
   });
 
-  it('keeps only the newest EVENT_TAIL engine events, newest first', () => {
-    const history = Array.from({ length: EVENT_TAIL + 30 }, (_, i) => order(i));
+  it('drops non-designated symbols from the engine tail', () => {
+    const history = [
+      order(1, { symbol: 'NBIS' }),
+      order(2, { symbol: 'SPY' }),
+      order(3, { symbol: 'MU' }),
+      order(4, { symbol: 'NVDA' }),
+    ];
+    const snap = buildStopRiskSnapshot({ positions, stops, history });
+    expect(snap.events.map((e) => e.symbol).sort()).toEqual(['MU', 'NBIS']);
+    expect(Object.keys(snap.prices || {})).toEqual([]);
+  });
+
+  it('keeps coded trails at MU 4% and NBIS 6% even when the live peg differs', () => {
+    const snap = buildStopRiskSnapshot({
+      positions,
+      stops: [
+        { ...stops[0], symbol: 'NBIS', trailing_peg: { percentage: 9, type: 'percentage' } },
+        { ...stops[1], trailing_peg: { percentage: 1, type: 'percentage' } },
+      ],
+      activity: [],
+    });
+    expect(DESIGNATED_STOPS).toEqual({ MU: 4, NBIS: 6 });
+    expect(snap.names.find((n) => n.symbol === 'MU')).toMatchObject({
+      coded_trail_percent: 4,
+      trail_percent: 1,
+    });
+    expect(snap.names.find((n) => n.symbol === 'NBIS')).toMatchObject({
+      coded_trail_percent: 6,
+      trail_percent: 9,
+    });
+  });
+
+  it('keeps only the newest EVENT_TAIL designated engine events, newest first', () => {
+    const history = Array.from({ length: EVENT_TAIL + 30 }, (_, i) =>
+      order(i, { symbol: i % 2 ? 'NBIS' : 'SPY' })
+    );
     const snap = buildStopRiskSnapshot({ positions, stops, history });
     expect(EVENT_TAIL).toBe(120);
-    expect(snap.events).toHaveLength(EVENT_TAIL);
+    expect(snap.events.every((e) => e.symbol === 'NBIS')).toBe(true);
+    expect(snap.events).toHaveLength(75);
     expect(snap.events[0].id).toBe(`o-${EVENT_TAIL + 29}`);
-    expect(snap.events.every((e) => e.type === 'engine')).toBe(true);
   });
 
   it('emits a price frame per quoted symbol and fills a missing mark from it', () => {
@@ -186,6 +222,16 @@ describe('stop-events-sse handler', () => {
     expect(sse.headers['Content-Type']).toBe('text/event-stream');
     expect(sse.body).toContain('event: snapshot');
     expect(sse.body).toContain('event: coverage');
+  });
+
+  it('fetches order history with HISTORY_FETCH_LIMIT and quotes only MU,NBIS', async () => {
+    expect(HISTORY_FETCH_LIMIT).toBeGreaterThan(EVENT_TAIL);
+    await handler({ httpMethod: 'GET', headers: {}, queryStringParameters: {} });
+    const urls = global.fetch.mock.calls.map((c) => String(c[0]));
+    expect(urls.some((u) => u.includes(`/api/orders/history?limit=${HISTORY_FETCH_LIMIT}`))).toBe(true);
+    const quote = urls.find((u) => u.includes('/api/quotes?'));
+    expect(quote).toMatch(/symbols=MU%2CNBIS|symbols=NBIS%2CMU|symbols=MU,NBIS|symbols=NBIS,MU/);
+    expect(quote).not.toMatch(/SPY|NVDA/);
   });
 });
 

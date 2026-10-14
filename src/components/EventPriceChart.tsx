@@ -58,15 +58,9 @@ export function eventPoints(events: StopRiskEvent[], symbol: string): EventPoint
     .sort((a, b) => a.t - b.t);
 }
 
-/** Symbols in the event tail, most active first, then designated names. */
-export function chartSymbols(events: StopRiskEvent[], designated: string[]): string[] {
-  const counts = new Map<string, number>();
-  for (const e of events) {
-    if (!e.symbol) continue;
-    counts.set(e.symbol, (counts.get(e.symbol) || 0) + 1);
-  }
-  const active = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
-  return [...new Set([...active, ...designated])];
+/** Chart tabs stay on the coded-trail book (MU, NBIS). */
+export function chartSymbols(_events: StopRiskEvent[], designated: string[]): string[] {
+  return [...designated];
 }
 
 /** Tag shape: ▲ buy, ▼ sell, ◆ stop; hollow until filled. */

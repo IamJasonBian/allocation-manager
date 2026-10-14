@@ -1,6 +1,7 @@
 import {
   appendTick,
   applySseFrame,
+  DESIGNATED_SYMBOLS,
   EMPTY_SNAPSHOT,
   EVENT_TAIL,
   parseSseFrames,
@@ -46,6 +47,41 @@ describe('applySseFrame', () => {
     expect(state.names[0].uncovered_qty).toBe(85);
     expect(state.prices?.NBIS.price).toBe(211.01);
     expect(state.events[0].code).toBe('order_filled');
+  });
+
+  it('keeps only MU and NBIS events and prices from a mixed snapshot', () => {
+    const state = applySseFrame(EMPTY_SNAPSHOT, {
+      event: 'snapshot',
+      data: {
+        as_of: 't1',
+        names: [{ symbol: 'NBIS', covered_qty: 1 }, { symbol: 'SPY', covered_qty: 2 }],
+        events: [
+          { type: 'engine', id: 'o-spy', symbol: 'SPY', ts: '2026-10-14T22:00:00Z' },
+          { type: 'engine', id: 'o-mu', symbol: 'MU', ts: '2026-10-14T22:01:00Z' },
+        ],
+        prices: {
+          SPY: { symbol: 'SPY', price: 1, ts: 't1' },
+          MU: { symbol: 'MU', price: 96, ts: 't1' },
+        },
+      },
+    });
+    expect(DESIGNATED_SYMBOLS).toEqual(['MU', 'NBIS']);
+    expect(state.names.map((n) => n.symbol)).toEqual(['NBIS']);
+    expect(state.events.map((e) => e.symbol)).toEqual(['MU']);
+    expect(Object.keys(state.prices || {})).toEqual(['MU']);
+  });
+
+  it('ignores live engine and price frames for other symbols', () => {
+    let state = applySseFrame(EMPTY_SNAPSHOT, {
+      event: 'engine',
+      data: { type: 'engine', id: 'o-spy', symbol: 'SPY', ts: '2026-10-14T22:00:00Z' },
+    });
+    state = applySseFrame(state, {
+      event: 'price',
+      data: { symbol: 'NVDA', price: 100, ts: 't1' },
+    });
+    expect(state.events).toEqual([]);
+    expect(state.prices).toBeUndefined();
   });
 });
 

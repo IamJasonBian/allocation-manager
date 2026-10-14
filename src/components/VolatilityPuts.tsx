@@ -12,6 +12,7 @@ import { useStopEventStream, type PriceTicks } from '../hooks/useStopEventStream
 import {
   DESIGNATED_SYMBOLS,
   eventTs,
+  isDesignated,
   type CoverageName,
   type StopRiskEvent,
   type StopRiskSnapshot,
@@ -150,7 +151,8 @@ export default function VolatilityPuts({
   const connected = connectedProp ?? live.connected;
   const focus = (focusSymbol || '').toUpperCase();
 
-  const chartData = snapshot.names.map((n) => ({
+  const names = snapshot.names.filter((n) => isDesignated(n.symbol));
+  const chartData = names.map((n) => ({
     symbol: n.symbol,
     covered: n.covered_qty,
     uncovered: n.uncovered_qty,
@@ -158,7 +160,9 @@ export default function VolatilityPuts({
     stop: n.stop_price || 0,
   }));
 
-  const sortedEvents = [...snapshot.events].sort((a, b) => eventTs(b) - eventTs(a));
+  const sortedEvents = snapshot.events
+    .filter((e) => isDesignated(e.symbol))
+    .sort((a, b) => eventTs(b) - eventTs(a));
 
   return (
     <div className="space-y-6">
@@ -209,15 +213,15 @@ export default function VolatilityPuts({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {snapshot.names.map((name) => (
+        {names.map((name) => (
           <NameCard key={name.symbol} name={name} focused={focus === name.symbol} />
         ))}
       </div>
 
       <EventPriceChart
-        events={snapshot.events}
+        events={sortedEvents}
         ticks={ticks}
-        names={snapshot.names}
+        names={names}
         designated={[...DESIGNATED_SYMBOLS]}
         focusSymbol={focus || undefined}
       />
@@ -243,7 +247,7 @@ export default function VolatilityPuts({
           <div className="px-5 py-4 border-b border-gray-100 dark:border-zinc-900">
             <h3 className="text-base font-semibold text-gray-900 dark:text-white">Event feed</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Last 120 engine order events
+              Last 120 MU / NBIS engine order events
             </p>
           </div>
           <div className="divide-y divide-gray-100 dark:divide-zinc-900 max-h-[320px] overflow-y-auto">

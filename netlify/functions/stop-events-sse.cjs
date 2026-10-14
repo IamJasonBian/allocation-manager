@@ -1,6 +1,6 @@
 /**
  * Live stop-risk snapshot for designated names (MU 4%, NBIS 6%), plus a tail
- * of the last 120 engine order events (all symbols) and live quotes for them.
+ * of the last 120 MU/NBIS engine order events and live quotes for those names.
  *
  * GET  /.netlify/functions/stop-events-sse
  *   Accept: text/event-stream  → SSE frames (EventSource reconnects after close)
@@ -13,11 +13,9 @@
 
 const {
   DESIGNATED_STOPS,
-  EVENT_TAIL,
+  HISTORY_FETCH_LIMIT,
   buildStopRiskSnapshot,
-  engineOrderEvents,
   snapshotToSse,
-  tailEvents,
 } = require('./lib/stopEvents.cjs');
 
 const TRADING_DB = (
@@ -69,10 +67,9 @@ function pickStops(trailing, orders) {
   }));
 }
 
-/** Designated names plus every symbol in the event tail, for the quote fetch. */
-function quoteSymbols(history) {
-  const tail = tailEvents(engineOrderEvents(history), EVENT_TAIL);
-  return [...new Set([...Object.keys(DESIGNATED_STOPS), ...tail.map((e) => e.symbol)])];
+/** Quotes are only fetched for the coded-trail book. */
+function quoteSymbols() {
+  return Object.keys(DESIGNATED_STOPS);
 }
 
 async function loadSnapshot() {
@@ -82,12 +79,12 @@ async function loadSnapshot() {
     getJson(`${ENGINE_API}/api/robinhood/trailing-stop`),
     getJson(`${ENGINE_API}/api/orders`),
     getJson(`${ENGINE_API}/api/positions`),
-    getJson(`${ENGINE_API}/api/orders/history?limit=${EVENT_TAIL}`),
+    getJson(`${ENGINE_API}/api/orders/history?limit=${HISTORY_FETCH_LIMIT}`),
   ]);
   const [dbPos, dbAct, trailing, orders, enginePos, history] = settled.map((r) =>
     r.status === 'fulfilled' ? r.value : null
   );
-  const symbols = quoteSymbols(history);
+  const symbols = quoteSymbols();
   const quotes = await getJson(
     `${ENGINE_API}/api/quotes?symbols=${encodeURIComponent(symbols.join(','))}`
   ).catch(() => null);
