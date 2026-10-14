@@ -147,13 +147,14 @@ describe('buildStopRiskSnapshot', () => {
     expect(snap.events.every((e) => e.type === 'engine')).toBe(true);
   });
 
-  it('emits a price frame per quoted symbol', () => {
+  it('emits a price frame per quoted symbol and fills a missing mark from it', () => {
     const snap = buildStopRiskSnapshot({
-      positions,
+      positions: [{ symbol: 'NBIS', quantity: 10 }],
       stops,
       quotes: { prices: { NBIS: 211.01, MU: 96 } },
       asOf: '2026-10-14T22:00:00Z',
     });
+    expect(snap.names.find((n) => n.symbol === 'NBIS').mark).toBe(211.01);
     expect(snap.prices.NBIS).toEqual({ symbol: 'NBIS', price: 211.01, ts: '2026-10-14T22:00:00Z' });
     expect(snapshotToSse(snap)).toContain('event: price\nid: NBIS-2026-10-14T22:00:00Z');
   });

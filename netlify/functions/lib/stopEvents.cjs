@@ -142,8 +142,13 @@ function buildStopRiskSnapshot({
   });
 
   const events = tailEvents(engineOrderEvents(history));
+  const prices = normalizePrices(quotes, asOf);
+  // Engine positions carry no mark; fall back to the live quote.
+  for (const name of names) {
+    if (!name.mark && prices[name.symbol]) name.mark = prices[name.symbol].price;
+  }
 
-  return { as_of: asOf, names, events, prices: normalizePrices(quotes, asOf) };
+  return { as_of: asOf, names, events, prices };
 }
 
 function encodeSse({ event, id, data, retry } = {}) {
