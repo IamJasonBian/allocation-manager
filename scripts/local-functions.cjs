@@ -16,6 +16,7 @@ const functions = {
   'robinhood-auth': require('../netlify/functions/robinhood-auth.cjs'),
   'robinhood-portfolio': require('../netlify/functions/robinhood-portfolio.cjs'),
   'robinhood-bot': require('../netlify/functions/robinhood-bot.cjs'),
+  'stop-events-sse': require('../netlify/functions/stop-events-sse.cjs'),
 };
 
 const server = http.createServer(async (req, res) => {
