@@ -3,6 +3,7 @@ import {
   appendTick,
   applySseFrame,
   EMPTY_SNAPSHOT,
+  isDesignated,
   parseSseFrames,
   stopEventsUrl,
   type PriceTick,
@@ -51,7 +52,7 @@ export function useStopEventStream(): {
         /* keep string */
       }
       setSnapshot((prev) => applySseFrame(prev, { event, id: ev.lastEventId, data }));
-      if (event === 'price' && isTick(data)) recordTicks([data]);
+      if (event === 'price' && isTick(data) && isDesignated(data.symbol)) recordTicks([data]);
     };
 
     if (typeof EventSource !== 'undefined') {

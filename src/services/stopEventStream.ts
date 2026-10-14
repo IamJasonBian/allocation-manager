@@ -1,9 +1,14 @@
 export const DESIGNATED_SYMBOLS = ['MU', 'NBIS'] as const;
+export type DesignatedSymbol = (typeof DESIGNATED_SYMBOLS)[number];
+
+export function isDesignated(symbol?: string | null): symbol is DesignatedSymbol {
+  return !!symbol && (DESIGNATED_SYMBOLS as readonly string[]).includes(symbol.toUpperCase());
+}
+
 /** Engine events kept in the SSE tail. */
 export const EVENT_TAIL = 120;
 /** Live price points kept per symbol on the client. */
 export const PRICE_TICK_CAP = 720;
-export type DesignatedSymbol = (typeof DESIGNATED_SYMBOLS)[number];
 
 export interface CoverageName {
   symbol: DesignatedSymbol | string;
@@ -111,19 +116,30 @@ export function appendTick(series: PriceTick[], tick: PriceTick, cap = PRICE_TIC
 export function applySseFrame(current: StopRiskSnapshot, frame: SseFrame): StopRiskSnapshot {
   if (frame.event === 'snapshot' && frame.data && typeof frame.data === 'object') {
     const snap = frame.data as StopRiskSnapshot;
-    return { ...snap, events: tailEvents(snap.events || []) };
+    const prices = Object.fromEntries(
+      Object.entries(snap.prices || {}).filter(([symbol]) => isDesignated(symbol))
+    );
+    return {
+      ...snap,
+      names: (snap.names || []).filter((n) => isDesignated(n.symbol)),
+      events: tailEvents((snap.events || []).filter((e) => isDesignated(e.symbol))),
+      prices,
+    };
   }
   if (frame.event === 'price' && frame.data && typeof frame.data === 'object') {
     const tick = frame.data as PriceTick;
+    if (!isDesignated(tick.symbol)) return current;
     return { ...current, prices: { ...(current.prices || {}), [tick.symbol]: tick } };
   }
   if (frame.event === 'coverage' && frame.data && typeof frame.data === 'object') {
     const name = frame.data as CoverageName;
+    if (!isDesignated(name.symbol)) return current;
     const rest = current.names.filter((n) => n.symbol !== name.symbol);
     return { ...current, names: [...rest, name] };
   }
   if (frame.event === 'engine' && frame.data && typeof frame.data === 'object') {
     const incoming = frame.data as StopRiskEvent;
+    if (!isDesignated(incoming.symbol)) return current;
     const key = incoming.id || `${incoming.code}-${incoming.symbol}`;
     const events = current.events.filter((e) => (e.id || `${e.code}-${e.symbol}`) !== key);
     return { ...current, events: tailEvents([...events, incoming]) };

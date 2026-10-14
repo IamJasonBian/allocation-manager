@@ -56,7 +56,9 @@ export default function StrategiesPage() {
       </div>
 
       {activeTab === 'market-depth' && <MarketDepth />}
-      {activeTab === 'volatility-puts' && <VolatilityPuts focusSymbol={focusSymbol} />}
+      <div hidden={activeTab !== 'volatility-puts'}>
+        <VolatilityPuts focusSymbol={focusSymbol} />
+      </div>
       {activeTab === 'weekend-momentum' && <WeekendMomentum />}
       {activeTab === 'news-straddle' && <NewsStraddle />}
     </div>

@@ -103,6 +103,18 @@ const SNAPSHOT: StopRiskSnapshot = {
       ts: '2026-10-14T22:30:02Z',
       message: 'SELL 20 NBIS stop @ 174.92',
     },
+    {
+      type: 'engine',
+      id: 'o-spy',
+      code: 'order_filled',
+      symbol: 'SPY',
+      side: 'BUY',
+      status: 'filled',
+      order_type: 'limit',
+      price: 744,
+      ts: '2026-10-14T22:41:00Z',
+      message: 'BUY 1 SPY limit @ 744.00',
+    },
   ],
 };
 
@@ -114,7 +126,9 @@ describe('VolatilityPuts', () => {
     expect(screen.getByTestId('coverage-MU').textContent).toMatch(/covered/);
     expect(screen.getByTestId('sse-status').textContent).toMatch(/live/);
     expect(screen.getAllByTestId('live-event')[0].textContent).toMatch(/order_filled/);
+    expect(screen.queryByText(/SPY/)).toBeNull();
     expect(screen.getByTestId('scatter').getAttribute('data-count')).toBe('2');
     expect(screen.getByRole('tab', { name: 'NBIS' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByRole('tab', { name: 'SPY' })).toBeNull();
   });
 });

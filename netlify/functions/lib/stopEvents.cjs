@@ -1,8 +1,14 @@
 /** Designated trailing-stop names and the coded trail percentages. */
 const DESIGNATED_STOPS = Object.freeze({ MU: 4, NBIS: 6 });
 
-/** How many engine events the SSE tail keeps. */
+/** How many designated engine events the SSE tail keeps. */
 const EVENT_TAIL = 120;
+/** How many raw engine orders to pull so the designated tail can fill. */
+const HISTORY_FETCH_LIMIT = 500;
+
+function isDesignated(symbol) {
+  return Object.prototype.hasOwnProperty.call(DESIGNATED_STOPS, String(symbol || '').toUpperCase());
+}
 
 function num(v) {
   if (v == null || v === '') return 0;
@@ -74,7 +80,7 @@ function coverageFor(position, stop, codedTrail) {
 function engineOrderEvents(history) {
   const rows = Array.isArray(history) ? history : history?.orders || [];
   return rows
-    .filter((o) => o && o.id && o.symbol)
+    .filter((o) => o && o.id && isDesignated(o.symbol))
     .map((o) => {
       const side = String(o.side || '').toUpperCase();
       const state = String(o.state || o.status || 'unknown').toLowerCase();
@@ -142,7 +148,9 @@ function buildStopRiskSnapshot({
   });
 
   const events = tailEvents(engineOrderEvents(history));
-  const prices = normalizePrices(quotes, asOf);
+  const prices = Object.fromEntries(
+    Object.entries(normalizePrices(quotes, asOf)).filter(([symbol]) => isDesignated(symbol))
+  );
   // Engine positions carry no mark; fall back to the live quote.
   for (const name of names) {
     if (!name.mark && prices[name.symbol]) name.mark = prices[name.symbol].price;
@@ -183,6 +191,8 @@ function snapshotToSse(snapshot, { retry = 8000 } = {}) {
 module.exports = {
   DESIGNATED_STOPS,
   EVENT_TAIL,
+  HISTORY_FETCH_LIMIT,
+  isDesignated,
   engineOrderEvents,
   tailEvents,
   buildStopRiskSnapshot,
