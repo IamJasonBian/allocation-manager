@@ -229,6 +229,7 @@ describe('stop-events-sse handler', () => {
     await handler({ httpMethod: 'GET', headers: {}, queryStringParameters: {} });
     const urls = global.fetch.mock.calls.map((c) => String(c[0]));
     expect(urls.some((u) => u.includes(`/api/orders/history?limit=${HISTORY_FETCH_LIMIT}`))).toBe(true);
+    expect(urls.some((u) => /orders\/history\?.*symbols=/.test(u) && /MU/.test(u) && /NBIS/.test(u))).toBe(true);
     const quote = urls.find((u) => u.includes('/api/quotes?'));
     expect(quote).toMatch(/symbols=MU%2CNBIS|symbols=NBIS%2CMU|symbols=MU,NBIS|symbols=NBIS,MU/);
     expect(quote).not.toMatch(/SPY|NVDA/);

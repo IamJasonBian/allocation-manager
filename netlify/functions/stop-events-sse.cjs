@@ -79,7 +79,11 @@ async function loadSnapshot() {
     getJson(`${ENGINE_API}/api/robinhood/trailing-stop`),
     getJson(`${ENGINE_API}/api/orders`),
     getJson(`${ENGINE_API}/api/positions`),
-    getJson(`${ENGINE_API}/api/orders/history?limit=${HISTORY_FETCH_LIMIT}`),
+    getJson(
+      `${ENGINE_API}/api/orders/history?limit=${HISTORY_FETCH_LIMIT}&symbols=${encodeURIComponent(
+        Object.keys(DESIGNATED_STOPS).join(',')
+      )}`
+    ),
   ]);
   const [dbPos, dbAct, trailing, orders, enginePos, history] = settled.map((r) =>
     r.status === 'fulfilled' ? r.value : null
