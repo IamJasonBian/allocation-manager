@@ -88,7 +88,7 @@ const SNAPSHOT: StopRiskSnapshot = {
       status: 'filled',
       order_type: 'limit',
       price: 178.5,
-      ts: '2026-10-14T22:39:30Z',
+      ts: new Date().toISOString(),
       message: 'BUY 1 NBIS limit @ 178.50',
     },
     {
@@ -100,7 +100,7 @@ const SNAPSHOT: StopRiskSnapshot = {
       status: 'queued',
       order_type: 'stop',
       price: 174.92,
-      ts: '2026-10-14T22:30:02Z',
+      ts: new Date().toISOString(),
       message: 'SELL 20 NBIS stop @ 174.92',
     },
   ],
@@ -117,5 +117,15 @@ describe('VolatilityPuts', () => {
     expect(screen.getAllByTestId('live-event')[0].textContent).toMatch(/order_filled/);
     expect(screen.getByTestId('scatter').getAttribute('data-count')).toBe('2');
     expect(screen.getByRole('tab', { name: 'NBIS' }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('lists call debit spreads as other tickets even when focused on NBIS', () => {
+    render(<VolatilityPuts snapshot={SNAPSHOT} ticks={{}} connected focusSymbol="NBIS" />);
+    const sheet = screen.getByTestId('spread-tickets');
+    expect(sheet.textContent).toMatch(/1050\/1100C/);
+    expect(sheet.textContent).toMatch(/380\/400C/);
+    expect(sheet.textContent).toMatch(/38\/40C/);
+    expect(sheet.querySelectorAll('li')).toHaveLength(3);
+    expect(sheet.textContent).toMatch(/NET 400C vol 36/);
   });
 });
